@@ -174,7 +174,7 @@ function VendeuseDashboard() {
                   onClick={() => router.push('/dashboard/conversations')}
                 >
                   <MessageSquare className="w-4 h-4 mr-2" />
-                  Messages
+                  Bot WhatsApp
                 </Button>
                 <Button 
                   variant="ghost"
