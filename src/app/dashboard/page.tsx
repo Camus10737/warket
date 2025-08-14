@@ -17,19 +17,21 @@ import {
   Store,
   MessageSquare,
   TrendingUp,
-  Settings
+  Settings,
+  Menu,
+  X // Ajout de l'icône X pour fermer le menu
 } from "lucide-react"
 import { authService, statsService, productService, commandeService } from '@/lib/services'
 import { withAuth } from '@/lib/withAuth'
 
 function VendeuseDashboard() {
-
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [boutique, setBoutique] = useState<any>(null)
   const [quickStats, setQuickStats] = useState<any>(null)
   const [recentCommandes, setRecentCommandes] = useState<any[]>([])
   const [alertes, setAlertes] = useState<any[]>([])
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false) // État pour le menu mobile
 
   useEffect(() => {
     // Vérifier l'authentification vendeuse
@@ -42,7 +44,7 @@ function VendeuseDashboard() {
     setBoutique(session.boutique)
     loadDashboardData(session.boutique.id)
 
-    // 🆕 S'abonner aux changements de session (ex: nom_boutique mis à jour depuis Paramètres)
+    // S'abonner aux changements de session
     const unsubscribe = authService.onAuthStateChange((s) => {
       if (s?.type === 'boutique') {
         setBoutique(s.boutique)
@@ -67,7 +69,7 @@ function VendeuseDashboard() {
         setRecentCommandes(commandesResult.data.slice(0, 5))
       }
 
-      // Charger les produits en rupture (pour alertes)
+      // Charger les produits en rupture
       const rupturesResult = await productService.getOutOfStockProducts(boutiqueId)
       if (rupturesResult.success && rupturesResult.data) {
         const alertesRupture = rupturesResult.data.map((product: any) => ({
@@ -91,12 +93,18 @@ function VendeuseDashboard() {
     router.push('/auth/login')
   }
 
+  // Fonction pour naviguer et fermer le menu mobile
+  const navigateAndCloseMenu = (path: string) => {
+    router.push(path)
+    setMobileMenuOpen(false)
+  }
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('fr-GN', {
       style: 'currency',
       currency: 'GNF',
       minimumFractionDigits: 0
-    }).format(amount || 0) // 🆕 guard au cas où
+    }).format(amount || 0)
   }
 
   const getCommandeStatusBadge = (status: string) => {
@@ -132,7 +140,7 @@ function VendeuseDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-white border-b border-gray-200 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo et boutique */}
@@ -148,9 +156,9 @@ function VendeuseDashboard() {
               </div>
             </div>
 
-            {/* Navigation */}
-            <div className="flex items-center space-x-4">
-              <nav className="hidden md:flex space-x-1">
+            {/* Navigation Desktop */}
+            <div className="hidden md:flex items-center space-x-4">
+              <nav className="flex space-x-1">
                 <Button variant="ghost" className="text-primary bg-primary/5">
                   <TrendingUp className="w-4 h-4 mr-2" />
                   Accueil
@@ -193,9 +201,88 @@ function VendeuseDashboard() {
                 <LogOut className="w-4 h-4" />
               </Button>
             </div>
+
+            {/* Menu Mobile */}
+            <div className="md:hidden flex items-center space-x-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleLogout}
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              >
+                {mobileMenuOpen ? (
+                  <X className="w-5 h-5" />
+                ) : (
+                  <Menu className="w-5 h-5" />
+                )}
+              </Button>
+            </div>
           </div>
+
+          {/* Menu Mobile Dropdown */}
+          {mobileMenuOpen && (
+            <div className="md:hidden absolute top-full left-0 right-0 bg-white border-b border-gray-200 shadow-lg z-50">
+              <div className="px-4 py-2 space-y-1">
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-start text-primary bg-primary/5"
+                  onClick={() => navigateAndCloseMenu('/dashboard')}
+                >
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  Accueil
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-start"
+                  onClick={() => navigateAndCloseMenu('/dashboard/produits')}
+                >
+                  <Package className="w-4 h-4 mr-2" />
+                  Produits
+                </Button>
+                <Button 
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => navigateAndCloseMenu('/dashboard/commandes')}
+                >
+                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  Commandes
+                </Button>
+                <Button 
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => navigateAndCloseMenu('/dashboard/conversations')}
+                >
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Bot WhatsApp
+                </Button>
+                <Button 
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => navigateAndCloseMenu('/dashboard/parametres')}
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Paramètres
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </header>
+
+      {/* Overlay pour fermer le menu mobile en cliquant à côté */}
+      {mobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-25 z-40 md:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
 
       {/* Contenu principal */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -423,4 +510,5 @@ function VendeuseDashboard() {
     </div>
   )
 }
+
 export default withAuth(VendeuseDashboard, "boutique")

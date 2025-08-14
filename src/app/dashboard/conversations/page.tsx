@@ -20,16 +20,9 @@ import {
   Camera,
   RefreshCw,
   Bot,
-  Clock
+  Clock,
+  X
 } from "lucide-react"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { authService, botService } from '@/lib/services'
 import { BotStatus } from '@/lib/services/botService'
 
@@ -97,7 +90,7 @@ export default function BotWhatsApp() {
           console.log('🔥 Nouveau QR Code reçu')
           setQrCode(qr)
           setBotStatus((prev: BotStatus) => ({ ...prev, status: 'qr' }))
-          setShowQRModal(true)
+          setShowQRModal(true) // Affichage automatique du QR
         },
         onStatusChange: (status) => {
           console.log('📱 Statut changé:', status)
@@ -121,6 +114,7 @@ export default function BotWhatsApp() {
           console.log('❌ Bot déconnecté:', reason)
           setQrCode(null)
           setConnecting(false)
+          setShowQRModal(false)
         },
         onError: (errorMsg) => {
           console.error('🚨 Erreur bot:', errorMsg)
@@ -170,6 +164,7 @@ export default function BotWhatsApp() {
         setBotStatus({ status: 'disconnected' })
         setQrCode(null)
         setBotError(null)
+        setShowQRModal(false)
       }
     } catch (error: any) {
       setBotError(error.message)
@@ -180,6 +175,11 @@ export default function BotWhatsApp() {
     if (boutique?.id) {
       initializeBotConnection(boutique.id)
     }
+  }
+
+  const closeQRModal = () => {
+    setShowQRModal(false)
+    // Ne pas supprimer le QR, juste fermer la modal
   }
 
   const getBotStatusDisplay = () => {
@@ -196,8 +196,8 @@ export default function BotWhatsApp() {
       case 'qr':
         return {
           icon: <QrCode className="w-5 h-5 text-orange-600" />,
-          text: 'Scan du QR Code',
-          description: 'Scannez le QR code avec WhatsApp',
+          text: 'En attente de scan',
+          description: 'Scannez le QR code avec votre téléphone',
           color: 'text-orange-600',
           bgColor: 'bg-orange-100',
           borderColor: 'border-orange-200'
@@ -318,8 +318,10 @@ export default function BotWhatsApp() {
                 </div>
               </div>
 
+              {/* LOGIQUE SIMPLIFIÉE DES BOUTONS */}
               <div className="flex space-x-2">
-                {botStatus.status === 'disconnected' && (
+                {/* Si déconnecté OU en cours de connexion : Bouton Connecter */}
+                {(botStatus.status === 'disconnected' || botStatus.status === 'connecting') && (
                   <Button
                     onClick={handleConnect}
                     disabled={connecting || !serverAvailable}
@@ -339,6 +341,29 @@ export default function BotWhatsApp() {
                   </Button>
                 )}
 
+                {/* Si QR disponible : Bouton Voir QR */}
+                {botStatus.status === 'qr' && qrCode && (
+                  <>
+                    <Button
+                      onClick={() => setShowQRModal(true)}
+                      size="lg"
+                      className="bg-orange-600 hover:bg-orange-700"
+                    >
+                      <QrCode className="w-5 h-5 mr-2" />
+                      Voir QR Code
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleDisconnect}
+                      size="lg"
+                    >
+                      <X className="w-5 h-5 mr-2" />
+                      Annuler
+                    </Button>
+                  </>
+                )}
+
+                {/* Si connecté : Bouton Déconnecter */}
                 {botStatus.status === 'connected' && (
                   <Button
                     variant="outline"
@@ -444,22 +469,26 @@ export default function BotWhatsApp() {
         )}
       </div>
 
-      {/* Modal QR Code */}
-      <Dialog open={showQRModal} onOpenChange={setShowQRModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center">
-              <QrCode className="w-5 h-5 mr-2" />
-              Connecter WhatsApp
-            </DialogTitle>
-            <DialogDescription>
-              Scannez ce QR code avec votre téléphone
-            </DialogDescription>
-          </DialogHeader>
-          
-          {qrCode && (
-            <div className="text-center space-y-4">
-              <div className="bg-white p-6 rounded-lg border-2 border-dashed border-orange-200 inline-block">
+      {/* Modal QR Code simplifiée */}
+      {showQRModal && qrCode && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold flex items-center">
+                <QrCode className="w-5 h-5 mr-2" />
+                Connecter WhatsApp
+              </h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={closeQRModal}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            <div className="p-6 text-center space-y-4">
+              <div className="bg-white p-4 rounded-lg border-2 border-dashed border-orange-200 inline-block">
                 <img 
                   src={qrCode} 
                   alt="QR Code WhatsApp" 
@@ -467,7 +496,7 @@ export default function BotWhatsApp() {
                 />
               </div>
               
-              <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+              <div className="bg-gray-50 p-4 rounded-lg space-y-3 text-left">
                 <h4 className="font-semibold text-sm">Instructions :</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center space-x-2">
@@ -485,18 +514,26 @@ export default function BotWhatsApp() {
                 </div>
               </div>
             </div>
-          )}
-          
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setShowQRModal(false)}
-            >
-              Fermer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            
+            <div className="p-4 border-t flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={closeQRModal}
+                className="flex-1"
+              >
+                Fermer
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleDisconnect}
+                className="flex-1"
+              >
+                Annuler la connexion
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
